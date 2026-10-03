@@ -28,6 +28,7 @@ private:
         }
         return output;
     }
+    
 
     int data_sz(initializer_list<int> shape)
     {
@@ -105,6 +106,12 @@ public:
         data = vector<T>(data_size);
         calculate_strides();
     }
+    Tensor(vector<int> list){
+        shape=list;
+        data_size=data_sz(list);
+        data=vector<T>(data_size);
+        calculate_strides();
+    }
 
     int size() const
     {
@@ -117,6 +124,9 @@ public:
             throw invalid_argument("shape index out of bounds");
 
         return shape[index];
+    }
+    vector<int> shape_f(){
+        return shape;
     }
 
     int strides_i(int index) const
@@ -205,11 +215,28 @@ public:
 
         return output;
     }
+     static Tensor arange(vector<int> list)
+    {
+        Tensor output(list);
+
+        for (int i = 0; i < output.size(); i++)
+        {
+            output.flat_asign(i, static_cast<T>(i));
+        }
+
+        return output;
+    }
 
     static Tensor zeros(int n)
     {
         return Tensor(n);
     }
+
+    static Tensor zeros(const vector<int> shape){
+         return Tensor(shape);
+    }
+
+    
 
     static Tensor zeros(initializer_list<int> list)
     {
@@ -227,13 +254,51 @@ public:
 
         return output;
     }
+     static Tensor full(vector<int> list, T input)
+    {
+        Tensor output(list);
+
+        for (int i = 0; i < output.size(); i++)
+        {
+            output.flat_asign(i, input);
+        }
+
+        return output;
+    }
 
     static Tensor ones(initializer_list<int> list)
     {
         return full(list, static_cast<T>(1));
     }
+     static Tensor ones(vector<int> list)
+    {
+        return full(list, static_cast<T>(1));
+    }
 
     static Tensor uniform(initializer_list<int> dimensions, T start, T end)
+    {
+        static_assert(
+            is_floating_point<T>::value,
+            "uniform requires a floating point Tensor type"
+        );
+
+        if (start > end)
+            throw invalid_argument("start must be less than or equal to end");
+
+        uniform_real_distribution<T> distribution(start, end);
+        random_device rd;
+        mt19937 gen(rd());
+
+        Tensor output(dimensions);
+
+        for (int i = 0; i < output.size(); i++)
+        {
+            output.flat_asign(i, distribution(gen));
+        }
+
+        return output;
+    }
+     static Tensor uniform(vector<int> dimensions, T start, T end)
     {
         static_assert(
             is_floating_point<T>::value,
@@ -287,8 +352,42 @@ public:
 
         return output;
     }
+    static Tensor normal(
+        vector<int> dimensions,
+        double mean,
+        double deviation)
+    {
+        static_assert(
+            is_floating_point<T>::value,
+            "normal requires a floating point Tensor type"
+        );
+
+        if (deviation < 0)
+            throw invalid_argument("standard deviation must be non-negative");
+
+        normal_distribution<T> distribution(
+            static_cast<T>(mean),
+            static_cast<T>(deviation)
+        );
+
+        random_device rd;
+        mt19937 gen(rd());
+
+        Tensor output(dimensions);
+
+        for (int i = 0; i < output.size(); i++)
+        {
+            output.flat_asign(i, distribution(gen));
+        }
+
+        return output;
+    }
 
     static Tensor standard(initializer_list<int> dimensions)
+    {
+        return normal(dimensions, 0.0, 1.0);
+    }
+     static Tensor standard(vector<int> dimensions)
     {
         return normal(dimensions, 0.0, 1.0);
     }
@@ -653,27 +752,3 @@ public:
         return !(*this == other);
     }
 };
-
-int main()
-{
-    Tensor<double> a = Tensor<double>::ones({3, 3});
-    Tensor<double> b = Tensor<double>::zeros({3, 3});
-
-    int c = a == b;
-
-    cout << c << '\n';
-
-    Tensor<double> x = Tensor<double>::arange({2, 3});
-    x.print();
-
-    Tensor<double> y = x.transpose();
-    y.print();
-
-    Tensor<double> z = x.matmul(y);
-    z.print();
-
-    cout << z.mean() << '\n';
-
-    Tensor<double> r = Tensor<double>::normal({2, 3}, 0, 1);
-    r.print();
-}
