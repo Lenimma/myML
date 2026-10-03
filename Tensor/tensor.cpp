@@ -95,7 +95,7 @@ public:
 
         data_size = n;
         data = vector<T>(n);
-        shape = {n};
+        shape = {n,1};
         calculate_strides();
     }
 
@@ -649,6 +649,36 @@ public:
 
                 output[{i, j}] = sum;
             }
+        }
+
+        return output;
+    }
+    Tensor slice(int start, int end, int axis) const
+    {
+        if (axis < 0 || axis >= ndim())
+            throw invalid_argument("axis out of bounds");
+
+        if (start < 0 || end > shape[axis] || start >= end)
+            throw invalid_argument("invalid slice range");
+
+        vector<int> new_shape = shape;
+        new_shape[axis] = end - start;
+
+        Tensor output(new_shape);
+
+        vector<int> indices(ndim(), 0);
+        for (int i = 0; i < output.size(); i++)
+        {
+            int temp = i;
+            for (int j = ndim() - 1; j >= 0; j--)
+            {
+                indices[j] = temp % new_shape[j];
+                temp /= new_shape[j];
+            }
+
+            indices[axis] += start;
+
+            output.flat_asign(i, at(indices));
         }
 
         return output;
